@@ -1,16 +1,19 @@
+# app/backend/server.py
+import time
 import torch
 from fastapi import FastAPI, HTTPException
 from transformers import BertTokenizerFast, BertForSequenceClassification
 from pydantic import BaseModel
 from pathlib import Path
 
-
 class ClientData(BaseModel):
     text: str
 
-BASE_DIR = Path(__file__).resolve().parents[1]  
+# Относительный путь к модели
+BASE_DIR = Path(__file__).resolve().parents[1] 
 MODEL_DIR = BASE_DIR / "model" / "rubert-news_model"
 
+print(f">>> ЛОГ: Ищу модель здесь: {MODEL_DIR}")
 tokenizer = BertTokenizerFast.from_pretrained(MODEL_DIR)
 model = BertForSequenceClassification.from_pretrained(MODEL_DIR)
 model.eval()
@@ -21,6 +24,9 @@ app = FastAPI()
 
 @app.post("/")
 def class_news(data: ClientData):
+    start = time.time()
+    print(">>> REQUEST RECEIVED")
+
     text = data.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Пустой текст")
@@ -37,5 +43,10 @@ def class_news(data: ClientData):
         logits = model(**inputs).logits
         pred_id = torch.argmax(logits, dim=-1).item()
 
-    label = id2label[pred_id]
-    return {"label": label}
+    print(f">>> DONE in {time.time() - start:.2f}s")
+
+    return {"label": id2label[pred_id]}
+
+@app.get("/")
+def health():
+    return {"status": "ok"}
